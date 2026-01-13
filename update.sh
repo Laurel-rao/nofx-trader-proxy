@@ -140,41 +140,76 @@ if [ "$UPDATE_DOCKER" = true ]; then
     # 5. 构建镜像并更新容器（使用 up -d --build 实现零停机更新）
     log_info "构建镜像并更新容器..."
     
+    # 5. 构建前端镜像
+    log_info "构建前端镜像..."
     if [ -n "$REBUILD_FLAG" ]; then
         log_info "使用 --no-cache 强制重新构建"
-        # 先构建，再更新
-        if $DOCKER_COMPOSE build $REBUILD_FLAG frontend; then
-            log_success "前端镜像构建成功"
-        else
-            log_error "前端镜像构建失败"
-            exit 1
-        fi
-        # 重启前端容器以同步新文件
-        log_info "重启前端容器以同步构建产物..."
-        $DOCKER_COMPOSE up -d --force-recreate frontend
-        # 更新其他服务（如果有变化）
-        $DOCKER_COMPOSE up -d
-        log_success "容器更新成功"
+        BUILD_CMD="$DOCKER_COMPOSE build $REBUILD_FLAG frontend"
     else
-        # 使用 --build 参数，构建并更新一步完成
-        log_info "构建前端镜像..."
-        if $DOCKER_COMPOSE build frontend; then
-            log_success "前端镜像构建成功"
-        else
-            log_error "前端镜像构建失败"
-            exit 1
-        fi
-        # 重启前端容器以同步新文件
-        log_info "重启前端容器以同步构建产物..."
-        if $DOCKER_COMPOSE up -d --force-recreate frontend; then
-            log_success "前端容器更新成功"
-        else
-            log_error "前端容器更新失败"
-            exit 1
-        fi
-        # 更新其他服务（如果有变化）
-        $DOCKER_COMPOSE up -d
+        BUILD_CMD="$DOCKER_COMPOSE build frontend"
     fi
+    
+    if eval $BUILD_CMD; then
+        log_success "前端镜像构建成功"
+    else
+        log_error "前端镜像构建失败"
+        exit 1
+    fi
+    
+    # 6. 从镜像中提取构建产物到本地
+    log_info "提取构建产物到本地 frontend/dist 目录..."
+    
+    # 获取镜像名称（从 docker-compose 项目名称和服务名称构建）
+    PROJECT_NAME=$(basename $(pwd) | tr '[:upper:]' '[:lower:]' | sed 's/[^a-z0-9]//g')
+    IMAGE_NAME="${PROJECT_NAME}-frontend"
+    
+    # 尝试多种方式获取镜像名称
+    FULL_IMAGE_NAME=$(docker images --format "{{.Repository}}:{{.Tag}}" | grep -E "(frontend|${IMAGE_NAME})" | head -1)
+    
+    if [ -z "$FULL_IMAGE_NAME" ]; then
+        # 如果找不到，尝试使用项目目录名
+        FULL_IMAGE_NAME=$(docker images --format "{{.Repository}}:{{.Tag}}" | grep frontend | head -1)
+    fi
+    
+    if [ -z "$FULL_IMAGE_NAME" ]; then
+        log_error "无法找到前端镜像"
+        exit 1
+    fi
+    
+    log_info "使用镜像: $FULL_IMAGE_NAME"
+    
+    # 创建临时容器来复制文件
+    TEMP_CONTAINER=$(docker create $FULL_IMAGE_NAME 2>/dev/null)
+    
+    if [ -z "$TEMP_CONTAINER" ]; then
+        log_error "无法创建临时容器"
+        exit 1
+    fi
+    
+    # 确保本地 dist 目录存在并清空
+    mkdir -p ./frontend/dist
+    rm -rf ./frontend/dist/*
+    
+    # 从容器复制文件到本地
+    if docker cp $TEMP_CONTAINER:/output/. ./frontend/dist/; then
+        log_success "构建产物已提取到 frontend/dist"
+        # 显示文件列表
+        log_info "构建的文件："
+        ls -lah ./frontend/dist/ | head -10
+    else
+        log_error "提取构建产物失败"
+        docker rm $TEMP_CONTAINER 2>/dev/null || true
+        exit 1
+    fi
+    
+    # 清理临时容器
+    docker rm $TEMP_CONTAINER >/dev/null 2>&1 || true
+    
+    # 7. 更新其他服务（如果有变化）
+    log_info "更新其他服务..."
+    $DOCKER_COMPOSE up -d
+    
+    log_success "容器更新成功"
     
     # 6. 等待服务就绪
     log_info "等待服务就绪..."
