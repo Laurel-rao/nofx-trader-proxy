@@ -1,0 +1,83 @@
+/* 全局样式和暗黑模式支持 */
+
+/* 过渡动画 */
+* {
+  transition: background-color 0.3s ease, color 0.3s ease, border-color 0.3s ease;
+}
+
+/* 滚动条样式 */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--el-fill-color-lighter);
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--el-border-color);
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--el-border-color-dark);
+}
+
+/* 暗黑模式下的滚动条 */
+.dark ::-webkit-scrollbar-track {
+  background: var(--el-fill-color-darker);
+}
+
+.dark ::-webkit-scrollbar-thumb {
+  background: var(--el-border-color);
+}
+
+.dark ::-webkit-scrollbar-thumb:hover {
+  background: var(--el-border-color-light);
+}
+
+/* 卡片阴影优化 */
+.el-card {
+  transition: box-shadow 0.3s ease;
+}
+
+.dark .el-card {
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.3);
+}
+
+/* 表格优化 */
+.el-table {
+  transition: all 0.3s ease;
+}
+
+/* 按钮优化 */
+.el-button {
+  transition: all 0.2s ease;
+}
+
+.el-button:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+}
+
+/* 输入框优化 */
+.el-input__wrapper {
+  transition: all 0.2s ease;
+}
+
+.el-input__wrapper:hover {
+  box-shadow: 0 0 0 1px var(--el-input-hover-border-color) inset;
+}
+
+/* 对话框优化 */
+.el-dialog {
+  transition: all 0.3s ease;
+}
+
+/* 标签优化 */
+.el-tag {
+  transition: all 0.2s ease;
+}
+
