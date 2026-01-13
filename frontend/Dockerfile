@@ -16,9 +16,11 @@ COPY . .
 # Vite 需要在构建时设置环境变量
 ARG VITE_API_BASE_URL=""
 ENV VITE_API_BASE_URL=$VITE_API_BASE_URL
+# 确保使用生产模式构建
+ENV NODE_ENV=production
 
-# 构建生产版本
-RUN npm run build
+# 构建生产版本（明确指定模式）
+RUN npm run build -- --mode production
 
 # 输出阶段 - 将构建产物复制到指定目录
 FROM alpine:latest
