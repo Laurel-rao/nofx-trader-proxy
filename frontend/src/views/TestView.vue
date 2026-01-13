@@ -363,6 +363,10 @@ const parsedDecisions = computed(() => {
     const decisionMatch = content.match(/<decision>([\s\S]*?)<\/decision>/i)
     if (decisionMatch) {
       jsonStr = decisionMatch[1].trim()
+      // 去除代码块标记（```json 和 ```）
+      jsonStr = jsonStr.replace(/^```json\s*/i, '').replace(/\s*```\s*$/, '')
+      jsonStr = jsonStr.replace(/^```\s*/, '').replace(/\s*```\s*$/, '')
+      jsonStr = jsonStr.trim()
     } else {
       // 如果没有标签，尝试直接查找 JSON 数组
       const jsonArrayMatch = content.match(/\[[\s\S]*\]/)
@@ -657,6 +661,10 @@ function parseDecisionsFromResponse(responseData) {
     const decisionMatch = content.match(/<decision>([\s\S]*?)<\/decision>/i)
     if (decisionMatch) {
       jsonStr = decisionMatch[1].trim()
+      // 去除代码块标记（```json 和 ```）
+      jsonStr = jsonStr.replace(/^```json\s*/i, '').replace(/\s*```\s*$/, '')
+      jsonStr = jsonStr.replace(/^```\s*/, '').replace(/\s*```\s*$/, '')
+      jsonStr = jsonStr.trim()
     } else {
       const jsonArrayMatch = content.match(/\[[\s\S]*\]/)
       if (jsonArrayMatch) {
