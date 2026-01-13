@@ -143,27 +143,37 @@ if [ "$UPDATE_DOCKER" = true ]; then
     if [ -n "$REBUILD_FLAG" ]; then
         log_info "使用 --no-cache 强制重新构建"
         # 先构建，再更新
-        if $DOCKER_COMPOSE build $REBUILD_FLAG; then
-            log_success "镜像构建成功"
+        if $DOCKER_COMPOSE build $REBUILD_FLAG frontend; then
+            log_success "前端镜像构建成功"
         else
-            log_error "镜像构建失败"
+            log_error "前端镜像构建失败"
             exit 1
         fi
-        # 更新容器（只重启有变化的容器）
-        if $DOCKER_COMPOSE up -d; then
-            log_success "容器更新成功"
-        else
-            log_error "容器更新失败"
-            exit 1
-        fi
+        # 重启前端容器以同步新文件
+        log_info "重启前端容器以同步构建产物..."
+        $DOCKER_COMPOSE up -d --force-recreate frontend
+        # 更新其他服务（如果有变化）
+        $DOCKER_COMPOSE up -d
+        log_success "容器更新成功"
     else
         # 使用 --build 参数，构建并更新一步完成
-        if $DOCKER_COMPOSE up -d --build; then
-            log_success "镜像构建和容器更新成功"
+        log_info "构建前端镜像..."
+        if $DOCKER_COMPOSE build frontend; then
+            log_success "前端镜像构建成功"
         else
-            log_error "构建或更新失败"
+            log_error "前端镜像构建失败"
             exit 1
         fi
+        # 重启前端容器以同步新文件
+        log_info "重启前端容器以同步构建产物..."
+        if $DOCKER_COMPOSE up -d --force-recreate frontend; then
+            log_success "前端容器更新成功"
+        else
+            log_error "前端容器更新失败"
+            exit 1
+        fi
+        # 更新其他服务（如果有变化）
+        $DOCKER_COMPOSE up -d
     fi
     
     # 6. 等待服务就绪

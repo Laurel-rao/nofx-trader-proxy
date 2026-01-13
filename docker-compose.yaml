@@ -67,7 +67,8 @@ services:
       - frontend_dist:/usr/share/nginx/html
     networks:
       - proxy_openai_network
-    # 构建完成后保持运行，以便 nginx 可以访问构建产物
+    # 容器启动时会自动同步构建产物到 volume
+    restart: "no"  # 不需要自动重启，构建完成后保持运行即可
 
   # Nginx 反向代理
   nginx:
