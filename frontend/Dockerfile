@@ -25,8 +25,8 @@ RUN rm -rf dist .vite node_modules/.vite
 # 添加构建时间戳，确保每次构建都不同
 RUN echo "Build time: $(date -u +%Y-%m-%dT%H:%M:%SZ)" > /app/build-info.txt
 
-# 构建生产版本（明确指定模式，强制重新构建）
-RUN npm run build -- --mode production --force
+# 构建生产版本（明确指定模式）
+RUN npm run build -- --mode production
 
 # 验证构建产物
 RUN ls -lah dist/ && echo "构建完成，文件列表：" && find dist -type f -name "*.js" | head -5
