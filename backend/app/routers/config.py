@@ -180,18 +180,41 @@ async def fetch_models(request: ModelsRequest):
                     if "error" in error_data:
                         error_msg = error_data["error"].get("message", error_msg)
                 except:
-                    error_msg = f"{error_msg} - {response.text[:200]}"
+                    # 安全地获取响应文本，避免编码错误
+                    try:
+                        response_text = response.text[:200]
+                        if isinstance(response_text, bytes):
+                            response_text = response_text.decode('utf-8', errors='replace')
+                        error_msg = f"{error_msg} - {response_text}"
+                    except:
+                        error_msg = f"{error_msg} - 无法解析响应内容"
                 
                 raise HTTPException(status_code=response.status_code, detail=error_msg)
     
     except httpx.TimeoutException:
         raise HTTPException(status_code=504, detail="请求超时，请检查 API Base URL")
     except httpx.RequestError as e:
-        raise HTTPException(status_code=502, detail=f"请求错误: {str(e)}")
+        # 确保错误信息正确编码
+        error_str = str(e)
+        try:
+            if isinstance(error_str, bytes):
+                error_str = error_str.decode('utf-8', errors='replace')
+        except:
+            error_str = repr(e)
+        raise HTTPException(status_code=502, detail=f"请求错误: {error_str}")
     except HTTPException:
         raise
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"获取模型列表失败: {str(e)}")
+        # 确保错误信息正确编码，避免 ASCII 编码错误
+        error_str = str(e)
+        try:
+            if isinstance(error_str, bytes):
+                error_str = error_str.decode('utf-8', errors='replace')
+            # 如果错误信息包含无法编码的字符，使用 repr
+            error_str.encode('utf-8')
+        except (UnicodeEncodeError, UnicodeDecodeError):
+            error_str = repr(e)
+        raise HTTPException(status_code=500, detail=f"获取模型列表失败: {error_str}")
 
 
 @router.get("/prompts/decision-test")

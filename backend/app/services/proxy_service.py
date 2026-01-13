@@ -143,6 +143,7 @@ async def proxy_request(
     response_data = None
     status_code = 500
     error_message = None
+    provider_request_id = None  # 在函数开始处初始化，确保所有代码路径都能访问
     
     try:
         # 发送请求（timeout=None 表示无超时限制）
@@ -155,7 +156,6 @@ async def proxy_request(
             status_code = response.status_code
             
             # 提取供应商返回的 request id（无论成功还是失败）
-            provider_request_id = None
             import re
             
             if response.status_code == 200:
