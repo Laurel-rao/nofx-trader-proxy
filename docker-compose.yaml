@@ -1,0 +1,102 @@
+version: '3.8'
+
+services:
+  # PostgreSQL 数据库
+  postgres:
+    image: postgres:15-alpine
+    container_name: proxy_openai_postgres
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: proxy_openai
+      PGDATA: /var/lib/postgresql/data/pgdata
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - proxy_openai_network
+
+  # 后端 API 服务
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: proxy_openai_backend
+    environment:
+      DATABASE_URL: postgresql+asyncpg://postgres:postgres@postgres:5432/proxy_openai
+      ENCRYPTION_KEY: ${ENCRYPTION_KEY:-your-secret-key-change-in-production}
+      CORS_ORIGINS: http://localhost,http://localhost:80,http://localhost:443
+      DEBUG: ${DEBUG:-false}
+    volumes:
+      - ./backend:/app
+      - backend_prompts:/app/prompts
+    ports:
+      - "8000:8000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    command: >
+      sh -c "
+        alembic upgrade head &&
+        uvicorn app.main:app --host 0.0.0.0 --port 8000
+      "
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    networks:
+      - proxy_openai_network
+    restart: unless-stopped
+
+  # 前端构建服务
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: proxy_openai_frontend
+    volumes:
+      - frontend_dist:/usr/share/nginx/html
+    networks:
+      - proxy_openai_network
+    # 构建完成后保持运行，以便 nginx 可以访问构建产物
+
+  # Nginx 反向代理
+  nginx:
+    image: nginx:alpine
+    container_name: proxy_openai_nginx
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./nginx/conf.d:/etc/nginx/conf.d:ro
+      - frontend_dist:/usr/share/nginx/html:ro
+      - nginx_logs:/var/log/nginx
+    depends_on:
+      - backend
+      - frontend
+    networks:
+      - proxy_openai_network
+    restart: unless-stopped
+
+volumes:
+  postgres_data:
+    driver: local
+  backend_prompts:
+    driver: local
+  frontend_dist:
+    driver: local
+  nginx_logs:
+    driver: local
+
+networks:
+  proxy_openai_network:
+    driver: bridge
+
