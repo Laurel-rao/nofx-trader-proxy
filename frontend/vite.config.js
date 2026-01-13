@@ -14,7 +14,7 @@ export default defineConfig({
     outDir: 'dist',
     assetsDir: 'assets',
     sourcemap: false,
-    minify: 'terser',
+    minify: 'esbuild', // 使用 esbuild 而不是 terser（更快，无需额外依赖）
     // 确保生产环境变量正确设置
     define: {
       'import.meta.env.PROD': JSON.stringify(process.env.NODE_ENV === 'production')
