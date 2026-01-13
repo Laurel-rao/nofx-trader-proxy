@@ -135,47 +135,48 @@ fi
 
 # 4. 更新 Docker 容器
 if [ "$UPDATE_DOCKER" = true ]; then
-    log_info "开始更新 Docker 容器..."
+    log_info "开始更新 Docker 容器（不关闭服务，零停机更新）..."
     
-    # 5. 停止现有容器（可选，保留数据）
-    log_info "停止现有容器..."
-    $DOCKER_COMPOSE down || true
+    # 5. 构建镜像并更新容器（使用 up -d --build 实现零停机更新）
+    log_info "构建镜像并更新容器..."
     
-    # 6. 重新构建镜像
-    log_info "重新构建 Docker 镜像..."
-    BUILD_CMD="$DOCKER_COMPOSE build"
     if [ -n "$REBUILD_FLAG" ]; then
-        BUILD_CMD="$BUILD_CMD $REBUILD_FLAG"
         log_info "使用 --no-cache 强制重新构建"
-    fi
-    
-    if eval $BUILD_CMD; then
-        log_success "镜像构建成功"
+        # 先构建，再更新
+        if $DOCKER_COMPOSE build $REBUILD_FLAG; then
+            log_success "镜像构建成功"
+        else
+            log_error "镜像构建失败"
+            exit 1
+        fi
+        # 更新容器（只重启有变化的容器）
+        if $DOCKER_COMPOSE up -d; then
+            log_success "容器更新成功"
+        else
+            log_error "容器更新失败"
+            exit 1
+        fi
     else
-        log_error "镜像构建失败"
-        exit 1
+        # 使用 --build 参数，构建并更新一步完成
+        if $DOCKER_COMPOSE up -d --build; then
+            log_success "镜像构建和容器更新成功"
+        else
+            log_error "构建或更新失败"
+            exit 1
+        fi
     fi
     
-    # 7. 启动容器
-    log_info "启动 Docker 容器..."
-    if $DOCKER_COMPOSE up -d; then
-        log_success "容器启动成功"
-    else
-        log_error "容器启动失败"
-        exit 1
-    fi
-    
-    # 8. 等待服务就绪
+    # 6. 等待服务就绪
     log_info "等待服务就绪..."
-    sleep 5
+    sleep 3
     
-    # 9. 检查服务状态
+    # 7. 检查服务状态
     log_info "检查服务状态..."
     $DOCKER_COMPOSE ps
     
-    # 10. 显示日志（可选）
+    # 8. 显示最近日志（仅显示有变化的服务）
     log_info "显示最近的服务日志..."
-    $DOCKER_COMPOSE logs --tail=50
+    $DOCKER_COMPOSE logs --tail=30
     
     log_success "更新完成！"
     log_info "访问地址:"
